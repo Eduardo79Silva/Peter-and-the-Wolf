@@ -2,32 +2,55 @@ using UnityEngine;
 
 public class FlockManager : MonoBehaviour
 {
+    public static FlockManager FM;
     public GameObject sheepPrefab;
+    public GameObject[] allSheep;
+
     public int flockSize = 20;
-    public float sheepSpeed = 2f;
-    public float detectionRadius = 10f;
+    public Vector3 fleeLimits = new(5, 5, 5);
+    public Vector3 goalPos = Vector3.zero;
 
-    public GameObject[] sheepArray;
+    [Header("Fish Settings")]
+    [Range(0.0f, 5.0f)]
+    public float minSpeed;
 
-    public Transform wolfTransform;
+    [Range(0.0f, 5.0f)]
+    public float maxSpeed;
+
+    [Range(1.0f, 10.0f)]
+    public float neighborDistance;
+
+    [Range(1.0f, 5.0f)]
+    public float rotationSpeed;
 
     void Start()
     {
-        sheepArray = new GameObject[flockSize];
-
+        FM = this;
+        allSheep = new GameObject[flockSize];
         for (int i = 0; i < flockSize; i++)
         {
-            Vector3 spawnPos = transform.position + Random.insideUnitSphere * 10f;
-            sheepArray[i] = Instantiate(sheepPrefab, spawnPos, Quaternion.identity);
-            sheepArray[i].GetComponent<SheepBehaviour>().flockManager = this;
+            Vector3 pos =
+                this.transform.position
+                + new Vector3(
+                    Random.Range(-fleeLimits.x, fleeLimits.x),
+                    1,
+                    Random.Range(-fleeLimits.z, fleeLimits.z)
+                );
+
+            allSheep[i] = Instantiate(sheepPrefab, pos, Quaternion.identity);
         }
+        goalPos = this.transform.position;
     }
 
     void Update()
     {
-        foreach (GameObject sheep in sheepArray)
+        if (UnityEngine.Random.Range(0, 100) < 1)
         {
-            sheep.GetComponent<SheepBehaviour>().MoveSheep();
+            goalPos = new Vector3(
+                    Random.Range(-fleeLimits.x, fleeLimits.x),
+                    1,
+                    Random.Range(-fleeLimits.z, fleeLimits.z)
+                );
         }
     }
 }

@@ -1,9 +1,9 @@
+using System;
 using UnityEngine;
 
 public class SheepBehaviour : MonoBehaviour
 {
-    public FlockManager flockManager;
-    public float speed = 2f;
+    float speed;
     public float neighborDistance = 3f;
     public float fleeSpeedMultiplier = 2f;
 
@@ -16,7 +16,71 @@ public class SheepBehaviour : MonoBehaviour
 
     void Start()
     {
-        direction = Random.insideUnitSphere.normalized; // Random starting direction
+        speed = UnityEngine.Random.Range(FlockManager.FM.minSpeed, FlockManager.FM.maxSpeed);
+        direction = UnityEngine.Random.insideUnitSphere.normalized; // Random starting direction
+    }
+
+    void Update()
+    {
+        if (UnityEngine.Random.Range(0, 100) < 1)
+        {
+            speed = UnityEngine.Random.Range(FlockManager.FM.minSpeed, FlockManager.FM.maxSpeed);
+        }
+        ApplyRules();
+        this.transform.Translate(0, 0, speed * Time.deltaTime);
+    }
+
+    void ApplyRules()
+    {
+        GameObject[] herd;
+        herd = FlockManager.FM.allSheep;
+
+        Vector3 vCenter = Vector3.zero;
+        Vector3 vAvoid = Vector3.zero;
+        float gSpeed = 0.01f;
+        float nDistance;
+        int groupSize = 0;
+
+        foreach (GameObject sheep in herd)
+        {
+            if (sheep != this.gameObject)
+            {
+                nDistance = Vector3.Distance(sheep.transform.position, this.transform.position);
+                if (nDistance <= FlockManager.FM.neighborDistance)
+                {
+                    vCenter += sheep.transform.position;
+                    groupSize++;
+
+                    if (nDistance < 1.0f)
+                    {
+                        vAvoid += this.transform.position - sheep.transform.position;
+                    }
+
+                    SheepBehaviour anotherSheep = sheep.GetComponent<SheepBehaviour>();
+                    gSpeed += anotherSheep.speed;
+                }
+            }
+        }
+
+        if (groupSize > 0)
+        {
+            vCenter = vCenter / groupSize + (FlockManager.FM.goalPos - this.transform.position);
+            speed = gSpeed / groupSize;
+
+            Vector3 direction = vCenter + vAvoid - transform.position;
+
+            Debug.Log("Direction:" + direction);
+            Debug.Log("FlockMates:" + groupSize);
+
+            if (direction != Vector3.zero)
+            {
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation,
+                    Quaternion.LookRotation(direction),
+                    FlockManager.FM.rotationSpeed * Time.deltaTime
+                );
+            }
+        }
     }
 
     public void MoveSheep()
@@ -25,7 +89,7 @@ public class SheepBehaviour : MonoBehaviour
         Vector3 fleeDirection = Vector3.zero;
         int flockMates = 0;
 
-        foreach (GameObject sheep in flockManager.sheepArray)
+        foreach (GameObject sheep in FlockManager.FM.allSheep)
         {
             float distance = Vector3.Distance(sheep.transform.position, transform.position);
 
@@ -34,13 +98,6 @@ public class SheepBehaviour : MonoBehaviour
             {
                 averageHeading += sheep.transform.forward;
                 flockMates++;
-            }
-
-            // Detect Wolf with field of view (FOV)
-            if (IsWolfInFieldOfView())
-            {
-                fleeDirection = (transform.position - flockManager.wolfTransform.position).normalized;
-                isFleeing = true;
             }
         }
 
@@ -54,26 +111,13 @@ public class SheepBehaviour : MonoBehaviour
         }
 
         // Move the sheep in the determined direction
-        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 2f);
-        transform.position += transform.forward * speed * Time.deltaTime;
-    }
-
-    bool IsWolfInFieldOfView()
-    {
-        Vector3 directionToWolf = flockManager.wolfTransform.position - transform.position;
-        float distanceToWolf = directionToWolf.magnitude;
-
-        // Check if Wolf is within detection radius
-        if (distanceToWolf <= detectionRadius)
-        {
-            // Check if Wolf is within the field of view (FOV)
-            float angleToWolf = Vector3.Angle(transform.forward, directionToWolf.normalized);
-            if (angleToWolf < fieldOfViewAngle / 2)
-            {
-                return true; // Wolf is within FOV
-            }
-        }
-
-        return false; // Wolf is outside FOV or detection radius
+        transform.SetPositionAndRotation(
+            speed * Time.deltaTime * transform.forward,
+            Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.LookRotation(direction),
+                Time.deltaTime * 2f
+            )
+        );
     }
 }
