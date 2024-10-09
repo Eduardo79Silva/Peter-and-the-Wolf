@@ -324,7 +324,7 @@ MonoBehaviour:
   goalPos: {x: 0, y: 0, z: 0}
   minSpeed: 0.44
   maxSpeed: 1.35
-  neighborDistance: 10
+  neighborDistance: 3
   rotationSpeed: 1.51
 --- !u!1 &1460179564
 GameObject:

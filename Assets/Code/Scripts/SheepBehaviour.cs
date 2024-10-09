@@ -13,6 +13,7 @@ public class SheepBehaviour : MonoBehaviour
 
     private Vector3 direction;
     private bool isFleeing = false;
+    bool turning = false;
 
     void Start()
     {
@@ -22,11 +23,42 @@ public class SheepBehaviour : MonoBehaviour
 
     void Update()
     {
-        if (UnityEngine.Random.Range(0, 100) < 1)
+        Bounds fence = new Bounds(
+            FlockManager.FM.transform.position,
+            FlockManager.FM.fleeLimits * 2
+        );
+        if (!fence.Contains(transform.position))
         {
-            speed = UnityEngine.Random.Range(FlockManager.FM.minSpeed, FlockManager.FM.maxSpeed);
+            turning = true;
         }
-        ApplyRules();
+        else
+        {
+            turning = false;
+        }
+
+        if (turning)
+        {
+            Vector3 direction = FlockManager.FM.transform.position - transform.position;
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.LookRotation(direction),
+                FlockManager.FM.rotationSpeed * Time.deltaTime
+            );
+        }
+        else
+        {
+            if (UnityEngine.Random.Range(0, 100) < 1)
+            {
+                speed = UnityEngine.Random.Range(
+                    FlockManager.FM.minSpeed,
+                    FlockManager.FM.maxSpeed
+                );
+            }
+            if (UnityEngine.Random.Range(0, 100) < 1)
+            {
+                ApplyRules();
+            }
+        }
         this.transform.Translate(0, 0, speed * Time.deltaTime);
     }
 
