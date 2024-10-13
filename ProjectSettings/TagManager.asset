@@ -5,11 +5,12 @@ TagManager:
   serializedVersion: 3
   tags:
   - Sheep
+  - Wolf
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Wolf
   - Water
   - UI
   - 
