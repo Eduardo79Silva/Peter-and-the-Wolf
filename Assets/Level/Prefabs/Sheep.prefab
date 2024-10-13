@@ -14,9 +14,9 @@ GameObject:
   - component: {fileID: 5556319771769654835}
   - component: {fileID: 3670160153836435100}
   - component: {fileID: 4871926255778721675}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Sheep
-  m_TagString: Untagged
+  m_TagString: Sheep
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -128,8 +128,13 @@ MonoBehaviour:
   viewMask:
     serializedVersion: 2
     m_Bits: 8
+  wolf: {fileID: 0}
   neighborDistance: 3
   fleeSpeedMultiplier: 2
+  safeDistance: 50
+  rotationSpeed: 5
+  directionChangeChance: 0.02
+  maxDirectionChangeAngle: 30
 --- !u!54 &4871926255778721675
 Rigidbody:
   m_ObjectHideFlags: 0
