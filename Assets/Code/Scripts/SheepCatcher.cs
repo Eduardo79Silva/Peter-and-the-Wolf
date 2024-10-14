@@ -1,7 +1,7 @@
-using UnityEngine;
-using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
 
 public class SheepCatcher : MonoBehaviour
 {
@@ -12,7 +12,8 @@ public class SheepCatcher : MonoBehaviour
 
     [Header("UI")]
     public TextMeshProUGUI hintText; // Reference to the UI Text component
-    public string hintMessage = "Press<space=0.2em><size=120%><b><color=\"green\">E</b></color></size><space=0.2em>to catch the sheep";
+    public string hintMessage =
+        "Press<space=0.2em><size=120%><b><color=\"green\">E</b></color></size><space=0.2em>to catch the sheep";
 
     private float catchProgress = 0f;
     private GameObject targetSheep;
@@ -64,6 +65,12 @@ public class SheepCatcher : MonoBehaviour
 
         foreach (Collider sheepCollider in sheepColliders)
         {
+            SheepBehaviour sheepBehavior = sheepCollider.GetComponent<SheepBehaviour>();
+            if (sheepBehavior == null || sheepBehavior.isCaught)
+            {
+                continue; // Skip sheep that are already caught
+            }
+
             Vector3 directionToSheep = sheepCollider.transform.position - transform.position;
             float angle = Vector3.Angle(transform.forward, directionToSheep);
 
@@ -85,19 +92,18 @@ public class SheepCatcher : MonoBehaviour
     private void CatchSheep(GameObject sheep)
     {
         Debug.Log("Sheep caught!");
+        GameManager.Instance.CaptureSheep();
         // Add your code here to handle the caught sheep
         // For example, you might want to disable the sheep's script, change its appearance, or add it to the player's inventory
-
         // Example: Disable the sheep's behavior script
-        SheepBehaviour sheepBehavior = sheep.GetComponent<SheepBehaviour>();
-        if (sheepBehavior != null)
+        if (sheep.TryGetComponent<SheepBehaviour>(out var sheepBehavior))
         {
+            sheepBehavior.isCaught = true; // Mark the sheep as caught
             sheepBehavior.enabled = false;
         }
 
         // Example: Change the sheep's color to indicate it's caught
-        Renderer sheepRenderer = sheep.GetComponent<Renderer>();
-        if (sheepRenderer != null)
+        if (sheep.TryGetComponent<Renderer>(out var sheepRenderer))
         {
             sheepRenderer.material.color = Color.blue;
         }
@@ -122,7 +128,7 @@ public class SheepCatcher : MonoBehaviour
         Gizmos.DrawLine(transform.position, transform.position + left * catchRange);
     }
 
-     private void ShowHint(bool show)
+    private void ShowHint(bool show)
     {
         if (hintText != null)
         {

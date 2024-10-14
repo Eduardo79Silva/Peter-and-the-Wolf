@@ -11,6 +11,7 @@ public class SheepBehaviour : EntityFOV
     public float directionChangeChance = 0.02f; // 2% chance per frame to change direction
     public float maxDirectionChangeAngle = 30f; // Maximum angle for random direction change
     private bool isFleeing = false;
+    public bool isCaught = false;
     private Vector3 fleeDirection;
 
     void Start()

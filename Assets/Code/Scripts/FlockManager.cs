@@ -10,7 +10,7 @@ public class FlockManager : MonoBehaviour
     public Vector3 fleeLimits = new(5, 5, 5);
     public Vector3 goalPos = Vector3.zero;
 
-    [Header("Fish Settings")]
+    [Header("Sheep Settings")]
     [Range(0.0f, 5.0f)]
     public float minSpeed;
 
