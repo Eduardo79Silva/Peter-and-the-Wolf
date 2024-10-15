@@ -80,7 +80,7 @@ public class EntityFOV : MonoBehaviour
     }
 
     // Optional: Draw the FOV in the scene view for debugging
-    private void OnDrawGizmos()
+    protected void BaseOnDrawGizmos()
     {
         // Change Gizmo color based on whether a target has been detected
         if (targetDetected)

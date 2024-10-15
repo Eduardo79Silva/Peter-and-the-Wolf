@@ -3,57 +3,121 @@ using UnityEngine;
 
 public class PatrolBehaviour : EntityFOV
 {
-    public float speed = 5;
+    public float patrolSpeed = 5f;
+    public float chaseSpeed = 7f;
     public float waitTime = .3f;
-    public float turnSpeed = 90;
+    public float turnSpeed = 90f;
+
+    public float detectionTime = 2f;
+    public float detectionDecayRate = 0.5f;
 
     private bool isChasingTarget = false;
+    private Vector3[] waypoints;
+    private int currentWaypointIndex;
+    private Coroutine activeCoroutine;
+
+    private float currentDetectionLevel = 0f;
 
     public Transform pathHolder;
 
     void Start()
     {
-        Vector3[] waypoints = new Vector3[pathHolder.childCount];
+        InitializeWaypoints();
+        StartPatrolling();
+    }
+
+    void Update()
+    {
+        UpdateDetectionLevel();
+
+        if (currentDetectionLevel >= detectionTime)
+        {
+            if (!isChasingTarget)
+            {
+                StartChasing();
+            }
+            ChaseTarget();
+        }
+        else if (isChasingTarget)
+        {
+            StopChasing();
+            StartPatrolling();
+        }
+    }
+
+    void UpdateDetectionLevel()
+    {
+        if (CanSeePlayer())
+        {
+            currentDetectionLevel += Time.deltaTime;
+            currentDetectionLevel = Mathf.Min(currentDetectionLevel, detectionTime);
+        }
+        else
+        {
+            currentDetectionLevel -= detectionDecayRate * Time.deltaTime;
+            currentDetectionLevel = Mathf.Max(currentDetectionLevel, 0f);
+        }
+    }
+
+    void InitializeWaypoints()
+    {
+        waypoints = new Vector3[pathHolder.childCount];
         for (int i = 0; i < waypoints.Length; i++)
         {
             waypoints[i] = pathHolder.GetChild(i).position;
             waypoints[i] = new Vector3(waypoints[i].x, transform.position.y, waypoints[i].z);
         }
-
-        StartCoroutine(FollowPath(waypoints));
     }
 
-    void Update()
+    void StartPatrolling()
     {
-        if (CanSeePlayer())
+        isChasingTarget = false;
+        if (activeCoroutine != null)
         {
-            ChaseTarget();
+            StopCoroutine(activeCoroutine);
         }
+        activeCoroutine = StartCoroutine(Patrol());
     }
 
-    IEnumerator FollowPath(Vector3[] waypoints)
+    void StartChasing()
     {
-        transform.position = waypoints[0];
+        isChasingTarget = true;
+        if (activeCoroutine != null)
+        {
+            StopCoroutine(activeCoroutine);
+        }
+        Debug.Log("Patrol started chasing the Wolf");
+    }
 
-        int targetWaypointIndex = 1;
-        Vector3 targetWaypoint = waypoints[targetWaypointIndex];
-        transform.LookAt(targetWaypoint);
+    void StopChasing()
+    {
+        isChasingTarget = false;
+        Debug.Log("Patrol stopped chasing the Wolf");
+    }
+
+    IEnumerator Patrol()
+    {
+        currentWaypointIndex = GetClosestWaypointIndex();
 
         while (true)
         {
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                targetWaypoint,
-                speed * Time.deltaTime
-            );
-            if (transform.position == targetWaypoint)
+            Vector3 targetWaypoint = waypoints[currentWaypointIndex];
+
+            while (transform.position != targetWaypoint)
             {
-                targetWaypointIndex = (targetWaypointIndex + 1) % waypoints.Length;
-                targetWaypoint = waypoints[targetWaypointIndex];
-                yield return new WaitForSeconds(waitTime);
-                yield return StartCoroutine(TurnToFace(targetWaypoint));
+                if (currentDetectionLevel >= detectionTime)
+                {
+                    yield break;
+                }
+
+                TurnToFace(targetWaypoint);
+                transform.position = Vector3.MoveTowards(transform.position, targetWaypoint, patrolSpeed * Time.deltaTime);
+                yield return null;
             }
-            yield return null;
+
+            currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
+            yield return StartCoroutine(TurnToFace(waypoints[currentWaypointIndex]));
+            yield return new WaitForSeconds(waitTime);
         }
     }
 
@@ -62,61 +126,84 @@ public class PatrolBehaviour : EntityFOV
         Vector3 dirToLookTarget = (lookTarget - transform.position).normalized;
         float targetAngle = 90 - Mathf.Atan2(dirToLookTarget.z, dirToLookTarget.x) * Mathf.Rad2Deg;
 
-        while (Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle) > 0.05f)
+        while (Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle)) > 0.05f)
         {
-            float angle = Mathf.MoveTowardsAngle(
-                transform.eulerAngles.y,
-                targetAngle,
-                turnSpeed * Time.deltaTime
-            );
+            if (currentDetectionLevel >= detectionTime)
+            {
+                yield break;
+            }
+
+            float angle = Mathf.MoveTowardsAngle(transform.eulerAngles.y, targetAngle, turnSpeed * Time.deltaTime);
             transform.eulerAngles = Vector3.up * angle;
             yield return null;
         }
     }
 
-    // Override target detection logic for the patrol
     protected override void OnTargetDetected()
     {
         base.OnTargetDetected();
-        Debug.Log("Patrol detected the Wolf");
-
-        // Set chase mode
-        isChasingTarget = true;
+        Debug.Log($"Wolf in sight. Detection level: {currentDetectionLevel:F2}/{detectionTime}");
     }
 
-    // Chase the detected target
     private void ChaseTarget()
     {
         if (wolf == null)
+        {
+            Debug.Log("Wolf is null");
             return;
+        }
 
-        // Move towards the target
         Vector3 directionToTarget = (wolf.position - transform.position).normalized;
-        transform.position += directionToTarget * speed * Time.deltaTime;
+        directionToTarget.y = 0; // Ensure the guard doesn't move vertically
+        Vector3 newPosition = transform.position + chaseSpeed * Time.deltaTime * directionToTarget;
+        newPosition.y = transform.position.y; // Maintain the current y position
+        transform.position = newPosition;
 
-        // Optional: You can add more logic for what happens when the patrol reaches the target
+        // Rotate to face the wolf
+        Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+
         float distanceToTarget = Vector3.Distance(transform.position, wolf.position);
-        if (distanceToTarget < 1.5f) // Example: within a certain range
+        if (distanceToTarget < 1.5f)
         {
             Debug.Log("Patrol reached the Wolf");
+            currentDetectionLevel = 0f; // Reset detection when guard reaches the wolf
             // Add code here for what happens when the patrol reaches the target (e.g., attack, alert, etc.)
         }
     }
 
-    // Reset chase mode if the target is lost (optional)
     protected override bool IsObstructed(Collider target)
     {
         if (base.IsObstructed(target))
         {
-            Debug.Log("Target obstructed or lost.");
-            isChasingTarget = false;
+            Debug.Log($"Target obstructed or lost. Detection level: {currentDetectionLevel:F2}/{detectionTime}");
             return true;
         }
         return false;
     }
 
+    private int GetClosestWaypointIndex()
+    {
+        int closestIndex = 0;
+        float closestDistance = Mathf.Infinity;
+
+        for (int i = 0; i < waypoints.Length; i++)
+        {
+            float distance = Vector3.Distance(transform.position, waypoints[i]);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }
+
     void OnDrawGizmos()
     {
+        if (pathHolder == null) return;
+
         Vector3 startPosition = pathHolder.GetChild(0).position;
         Vector3 previousPosition = startPosition;
 
@@ -127,8 +214,15 @@ public class PatrolBehaviour : EntityFOV
             previousPosition = waypoint.position;
         }
         Gizmos.DrawLine(previousPosition, startPosition);
+        BaseOnDrawGizmos();
 
         Gizmos.color = Color.red;
         Gizmos.DrawRay(transform.position, transform.forward * detectionDistance);
+
+        // Draw detection meter
+        Gizmos.color = Color.yellow;
+        float detectionRatio = currentDetectionLevel / detectionTime;
+        Vector3 meterPosition = transform.position + Vector3.up * 2f;
+        Gizmos.DrawLine(meterPosition, meterPosition + Vector3.right * detectionRatio);
     }
 }

@@ -5,14 +5,19 @@ public class SheepBehaviour : EntityFOV
 {
     float speed;
     public float neighborDistance = 3f;
-    public float fleeSpeedMultiplier = 2.5f; // Increased multiplier for faster fleeing
+    public float fleeSpeedMultiplier = 2.5f;
     public float safeDistance = 50f;
-    public float rotationSpeed = 3f; // Controls how quickly the sheep turns
-    public float directionChangeChance = 0.02f; // 2% chance per frame to change direction
-    public float maxDirectionChangeAngle = 30f; // Maximum angle for random direction change
+    public float rotationSpeed = 3f;
+    public float directionChangeChance = 0.02f;
+    public float maxDirectionChangeAngle = 30f;
     private bool isFleeing = false;
     public bool isCaught = false;
     private Vector3 fleeDirection;
+
+    // New variables for gradual detection
+    public float detectionTime = 2f;
+    public float detectionDecayRate = 0.5f;
+    private float currentDetectionLevel = 0f;
 
     void Start()
     {
@@ -23,6 +28,7 @@ public class SheepBehaviour : EntityFOV
     void Update()
     {
         BaseUpdate();
+        UpdateDetectionLevel();
 
         if (isFleeing)
         {
@@ -33,6 +39,35 @@ public class SheepBehaviour : EntityFOV
             ApplyFlockingBehavior();
             transform.Translate(0, 0, speed * Time.deltaTime);
         }
+    }
+
+    // New method for updating detection level
+    void UpdateDetectionLevel()
+    {
+        if (CanSeePlayer())
+        {
+            currentDetectionLevel += Time.deltaTime;
+            currentDetectionLevel = Mathf.Min(currentDetectionLevel, detectionTime);
+
+            if (currentDetectionLevel >= detectionTime && !isFleeing)
+            {
+                OnWolfFullyDetected();
+            }
+        }
+        else
+        {
+            currentDetectionLevel -= detectionDecayRate * Time.deltaTime;
+            currentDetectionLevel = Mathf.Max(currentDetectionLevel, 0f);
+        }
+    }
+
+    // New method for when the wolf is fully detected
+    void OnWolfFullyDetected()
+    {
+        Debug.Log("Sheep fully detected a wolf! Running away!");
+        isFleeing = true;
+        WarnOtherSheep();
+        fleeDirection = (transform.position - wolf.transform.position).normalized;
     }
 
     void ApplyFlockingBehavior()
@@ -98,13 +133,11 @@ public class SheepBehaviour : EntityFOV
         }
     }
 
+    // Modified to log the current detection level
     protected override void OnTargetDetected()
     {
         base.OnTargetDetected();
-        Debug.Log("Sheep detected a wolf! Running away from him!");
-        isFleeing = true;
-        WarnOtherSheep();
-        fleeDirection = (transform.position - wolf.transform.position).normalized;
+        Debug.Log($"Sheep spotted a wolf! Detection level: {currentDetectionLevel:F2}/{detectionTime}");
     }
 
     private void RunAwayFrom(Transform wolf)
@@ -114,6 +147,7 @@ public class SheepBehaviour : EntityFOV
         {
             Debug.Log("Sheep is now at a safe distance. Stopping flee.");
             isFleeing = false;
+            currentDetectionLevel = 0f; // Reset detection when safe
             return;
         }
 
@@ -151,5 +185,16 @@ public class SheepBehaviour : EntityFOV
             SheepBehaviour sheepBehaviour = sheep.GetComponent<SheepBehaviour>();
             sheepBehaviour.isFleeing = true;
         }
+    }
+
+    // Optional: Add this method to visualize the detection meter
+    void OnDrawGizmos()
+    {
+        BaseOnDrawGizmos();
+        // Draw detection meter
+        Gizmos.color = Color.yellow;
+        float detectionRatio = currentDetectionLevel / detectionTime;
+        Vector3 meterPosition = transform.position + Vector3.up * 2f;
+        Gizmos.DrawLine(meterPosition, meterPosition + Vector3.right * detectionRatio);
     }
 }
