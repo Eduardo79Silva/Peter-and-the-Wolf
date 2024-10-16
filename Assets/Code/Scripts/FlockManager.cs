@@ -53,4 +53,12 @@ public class FlockManager : MonoBehaviour
                 );
         }
     }
+
+    void OnDrawGizmos(){
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(this.transform.position, new Vector3(fleeLimits.x * 2, 1, fleeLimits.z * 2));
+
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(goalPos, 1);
+    }
 }

@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Sheep
   - Wolf
+  - Fence
   layers:
   - Default
   - TransparentFX

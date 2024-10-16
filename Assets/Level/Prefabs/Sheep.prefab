@@ -123,7 +123,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   detectionDistance: 5
-  fovAngle: 45
+  fovAngle: 180
   targetTag: Wolf
   viewMask:
     serializedVersion: 2

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class SheepBehaviour : EntityFOV
@@ -14,10 +15,15 @@ public class SheepBehaviour : EntityFOV
     public bool isCaught = false;
     private Vector3 fleeDirection;
 
-    // New variables for gradual detection
+    // Variables for gradual detection
     public float detectionTime = 2f;
     public float detectionDecayRate = 0.5f;
     private float currentDetectionLevel = 0f;
+
+    // Variables for fence avoidance
+    public string fenceTag = "Fence";
+    public float fenceDetectionDistance = 5f;
+    public float fenceAvoidanceStrength = 2f;
 
     void Start()
     {
@@ -30,18 +36,18 @@ public class SheepBehaviour : EntityFOV
         BaseUpdate();
         UpdateDetectionLevel();
 
+        Vector3 fenceAvoidanceDirection = GetFenceAvoidanceDirection();
+
         if (isFleeing)
         {
-            RunAwayFrom(wolf.transform);
+            RunAwayFrom(wolf.transform, fenceAvoidanceDirection);
         }
         else
         {
-            ApplyFlockingBehavior();
-            transform.Translate(0, 0, speed * Time.deltaTime);
+            ApplyFlockingBehavior(fenceAvoidanceDirection);
         }
     }
 
-    // New method for updating detection level
     void UpdateDetectionLevel()
     {
         if (CanSeePlayer())
@@ -61,7 +67,6 @@ public class SheepBehaviour : EntityFOV
         }
     }
 
-    // New method for when the wolf is fully detected
     void OnWolfFullyDetected()
     {
         Debug.Log("Sheep fully detected a wolf! Running away!");
@@ -70,7 +75,7 @@ public class SheepBehaviour : EntityFOV
         fleeDirection = (transform.position - wolf.transform.position).normalized;
     }
 
-    void ApplyFlockingBehavior()
+    void ApplyFlockingBehavior(Vector3 fenceAvoidanceDirection)
     {
         if (UnityEngine.Random.Range(0, 100) < 1)
         {
@@ -80,6 +85,10 @@ public class SheepBehaviour : EntityFOV
         {
             ApplyRules();
         }
+
+        Vector3 movement = transform.forward + fenceAvoidanceDirection * fenceAvoidanceStrength;
+        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(movement), rotationSpeed * Time.deltaTime);
+        transform.Translate(0, 0, speed * Time.deltaTime);
     }
 
     void ApplyRules()
@@ -95,10 +104,7 @@ public class SheepBehaviour : EntityFOV
         {
             if (sheep != this.gameObject)
             {
-                float nDistance = Vector3.Distance(
-                    sheep.transform.position,
-                    this.transform.position
-                );
+                float nDistance = Vector3.Distance(sheep.transform.position, this.transform.position);
                 if (nDistance <= FlockManager.FM.neighborDistance)
                 {
                     vCenter += sheep.transform.position;
@@ -133,14 +139,13 @@ public class SheepBehaviour : EntityFOV
         }
     }
 
-    // Modified to log the current detection level
     protected override void OnTargetDetected()
     {
         base.OnTargetDetected();
         Debug.Log($"Sheep spotted a wolf! Detection level: {currentDetectionLevel:F2}/{detectionTime}");
     }
 
-    private void RunAwayFrom(Transform wolf)
+    private void RunAwayFrom(Transform wolf, Vector3 fenceAvoidanceDirection)
     {
         float distanceToWolf = Vector3.Distance(transform.position, wolf.position);
         if (distanceToWolf > safeDistance)
@@ -151,27 +156,22 @@ public class SheepBehaviour : EntityFOV
             return;
         }
 
-        // Update flee direction
+        // Update flee direction, now including fence avoidance
         Vector3 directionAway = (transform.position - wolf.position).normalized;
         fleeDirection = Vector3.Lerp(fleeDirection, directionAway, Time.deltaTime * rotationSpeed);
+        fleeDirection += fenceAvoidanceDirection * fenceAvoidanceStrength;
+        fleeDirection.Normalize();
 
         // Random direction change
         if (UnityEngine.Random.value < directionChangeChance)
         {
-            float randomAngle = UnityEngine.Random.Range(
-                -maxDirectionChangeAngle,
-                maxDirectionChangeAngle
-            );
+            float randomAngle = UnityEngine.Random.Range(-maxDirectionChangeAngle, maxDirectionChangeAngle);
             fleeDirection = Quaternion.Euler(0, randomAngle, 0) * fleeDirection;
         }
 
         // Smooth rotation
         Quaternion targetRotation = Quaternion.LookRotation(fleeDirection);
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            targetRotation,
-            Time.deltaTime * rotationSpeed
-        );
+        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * rotationSpeed);
 
         // Move the sheep away from the wolf at increased speed
         float fleeSpeed = speed * fleeSpeedMultiplier;
@@ -187,7 +187,23 @@ public class SheepBehaviour : EntityFOV
         }
     }
 
-    // Optional: Add this method to visualize the detection meter
+    Vector3 GetFenceAvoidanceDirection()
+    {
+        Vector3 avoidanceDirection = Vector3.zero;
+        Collider[] nearbyObjects = Physics.OverlapSphere(transform.position, fenceDetectionDistance);
+
+        foreach (Collider obj in nearbyObjects)
+        {
+            if (obj.CompareTag(fenceTag))
+            {
+                Vector3 awayFromFence = transform.position - obj.ClosestPoint(transform.position);
+                avoidanceDirection += awayFromFence.normalized / awayFromFence.magnitude;
+            }
+        }
+
+        return avoidanceDirection.normalized;
+    }
+
     void OnDrawGizmos()
     {
         BaseOnDrawGizmos();
