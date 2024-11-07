@@ -19,17 +19,20 @@ namespace FIMSpace.Basics
         private float offsetRotY = 0f;
         private Vector3 moveDir = Vector3.zero;
         private Vector3 targetRot;
+        private Animator animator;
 
         protected override void Start()
         {
             base.Start();
 
+            animator = GetComponentInChildren<Animator>();
             targetRot = transform.rotation.eulerAngles;
         }
 
         protected virtual void Update()
         {
             UpdateMotor();
+            UpdateAnimator();
         }
 
 
@@ -56,7 +59,7 @@ namespace FIMSpace.Basics
                     moveDir += Vector3.right;
 
                 // Debug sprint
-                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) moveSpeed *= 1.5f;
+                if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) moveSpeed *= 2.5f;
 
 
                 // Triggering jump to be executed in next fixed update
@@ -86,6 +89,16 @@ namespace FIMSpace.Basics
 
             // Calculating smooth rotation to be applied in fixes update
             smoothedRotation = Quaternion.Lerp(rigbody.rotation, Quaternion.Euler(targetRot), Time.deltaTime * RotationSpeed);
+        }
+
+        private void UpdateAnimator()
+        {
+            if (animator == null) return;
+
+            float velocity = moveDir.magnitude / 2;
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) velocity *= 2f;
+            Debug.Log("Setting velocity:" + velocity);
+            animator.SetFloat("Velocity", velocity);
         }
 
     }

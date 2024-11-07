@@ -22,6 +22,7 @@ public class PatrolBehaviour : EntityFOV
 
     void Start()
     {
+        BaseStart();
         InitializeWaypoints();
         StartPatrolling();
     }
@@ -49,6 +50,10 @@ public class PatrolBehaviour : EntityFOV
     {
         if (CanSeePlayer())
         {
+            // Calculate distance to wolf
+            float distanceToWolf = Vector3.Distance(transform.position, wolf.position);
+            float inverseProximity = 1f - Mathf.Clamp01(distanceToWolf / detectionDistance);
+            detectionTime = Mathf.Lerp(0.5f, 2f, inverseProximity);
             currentDetectionLevel += Time.deltaTime;
             currentDetectionLevel = Mathf.Min(currentDetectionLevel, detectionTime);
         }
@@ -110,8 +115,12 @@ public class PatrolBehaviour : EntityFOV
                     yield break;
                 }
 
-                TurnToFace(targetWaypoint);
-                transform.position = Vector3.MoveTowards(transform.position, targetWaypoint, patrolSpeed * Time.deltaTime);
+                StartCoroutine(TurnToFace(targetWaypoint));
+                transform.position = Vector3.MoveTowards(
+                    transform.position,
+                    targetWaypoint,
+                    patrolSpeed * Time.deltaTime
+                );
                 yield return null;
             }
 
@@ -133,7 +142,11 @@ public class PatrolBehaviour : EntityFOV
                 yield break;
             }
 
-            float angle = Mathf.MoveTowardsAngle(transform.eulerAngles.y, targetAngle, turnSpeed * Time.deltaTime);
+            float angle = Mathf.MoveTowardsAngle(
+                transform.eulerAngles.y,
+                targetAngle,
+                turnSpeed * Time.deltaTime
+            );
             transform.eulerAngles = Vector3.up * angle;
             yield return null;
         }
@@ -142,14 +155,12 @@ public class PatrolBehaviour : EntityFOV
     protected override void OnTargetDetected()
     {
         base.OnTargetDetected();
-        Debug.Log($"Wolf in sight. Detection level: {currentDetectionLevel:F2}/{detectionTime}");
     }
 
     private void ChaseTarget()
     {
         if (wolf == null)
         {
-            Debug.Log("Wolf is null");
             return;
         }
 
@@ -161,12 +172,15 @@ public class PatrolBehaviour : EntityFOV
 
         // Rotate to face the wolf
         Quaternion targetRotation = Quaternion.LookRotation(directionToTarget);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, turnSpeed * Time.deltaTime);
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            targetRotation,
+            turnSpeed * Time.deltaTime
+        );
 
         float distanceToTarget = Vector3.Distance(transform.position, wolf.position);
         if (distanceToTarget < 1.5f)
         {
-            Debug.Log("Patrol reached the Wolf");
             currentDetectionLevel = 0f; // Reset detection when guard reaches the wolf
             // Add code here for what happens when the patrol reaches the target (e.g., attack, alert, etc.)
         }
@@ -176,7 +190,9 @@ public class PatrolBehaviour : EntityFOV
     {
         if (base.IsObstructed(target))
         {
-            Debug.Log($"Target obstructed or lost. Detection level: {currentDetectionLevel:F2}/{detectionTime}");
+            Debug.Log(
+                $"Target obstructed or lost. Detection level: {currentDetectionLevel:F2}/{detectionTime}"
+            );
             return true;
         }
         return false;
@@ -202,7 +218,8 @@ public class PatrolBehaviour : EntityFOV
 
     void OnDrawGizmos()
     {
-        if (pathHolder == null) return;
+        if (pathHolder == null)
+            return;
 
         Vector3 startPosition = pathHolder.GetChild(0).position;
         Vector3 previousPosition = startPosition;

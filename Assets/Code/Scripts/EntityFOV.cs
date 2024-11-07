@@ -12,7 +12,9 @@ public class EntityFOV : MonoBehaviour
     // Reference to the target tag (e.g. "Wolf")
     public string targetTag = "Wolf";
 
-    public LayerMask viewMask;
+    public LayerMask ignoreMask = 8;
+
+    public LayerMask viewMask = 3;
 
     // To track if a target is currently detected
     protected bool targetDetected = false;
@@ -21,8 +23,7 @@ public class EntityFOV : MonoBehaviour
 
     protected void BaseStart()
     {
-        wolf = GameObject.FindGameObjectWithTag("Wolf").transform;
-        Debug.Log(wolf.name);
+        wolf = GameObject.FindGameObjectWithTag(targetTag).transform;
     }
 
     protected void BaseUpdate()
@@ -33,14 +34,20 @@ public class EntityFOV : MonoBehaviour
     // Method to detect targets within the field of view
     protected virtual bool CanSeePlayer()
     {
-        if (Vector3.Distance(transform.position, wolf.position) < detectionDistance)
+        Vector3 positionNoY = transform.position;
+        positionNoY.y = 0f;
+        Vector3 wolfNoY = wolf.position;
+        wolfNoY.y = 0f;
+        if (Vector3.Distance(positionNoY, wolfNoY) < detectionDistance)
         {
-            Vector3 dirToPlayer = (wolf.position - transform.position).normalized;
+            Vector3 dirToPlayer = (wolfNoY - positionNoY).normalized;
             float angle = Vector3.Angle(transform.forward, dirToPlayer);
             if (angle < fovAngle / 2f)
             {
-                if (!Physics.Linecast(transform.position, wolf.position, viewMask))
+                Debug.Log("Wolf in sight unless obstructed");
+                if (!IsObstructed(wolf.GetComponent<Collider>())) // Check if the target is obstructed
                 {
+                    Debug.Log("Wolf in sight");
                     OnTargetDetected();
                     return true;
                 }
@@ -65,13 +72,15 @@ public class EntityFOV : MonoBehaviour
                 transform.position,
                 directionToTarget,
                 out RaycastHit hit,
-                detectionDistance
+                detectionDistance,
+                ~ignoreMask
             )
         )
         {
             if (hit.collider != target)
             {
                 // If we hit something other than the target, it's obstructed
+                Debug.Log("Obstructed by " + hit.collider.name);
                 return true;
             }
         }
