@@ -25,6 +25,8 @@ public class SheepBehaviour : EntityFOV
     public float fenceDetectionDistance = 5f;
     public float fenceAvoidanceStrength = 2f;
 
+    private Vector3 gizmoTargetRotation;
+
     void Start()
     {
         BaseStart();
@@ -175,7 +177,7 @@ public class SheepBehaviour : EntityFOV
 
         // Move the sheep away from the wolf at increased speed
         float fleeSpeed = speed * fleeSpeedMultiplier;
-        transform.Translate(Vector3.forward * fleeSpeed * Time.deltaTime);
+        transform.Translate(fleeSpeed * Time.deltaTime * Vector3.forward);
     }
 
     private void WarnOtherSheep()
@@ -197,6 +199,7 @@ public class SheepBehaviour : EntityFOV
             if (obj.CompareTag(fenceTag))
             {
                 Vector3 awayFromFence = transform.position - obj.ClosestPoint(transform.position);
+                awayFromFence.y = 0;
                 avoidanceDirection += awayFromFence.normalized / awayFromFence.magnitude;
             }
         }

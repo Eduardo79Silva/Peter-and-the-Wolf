@@ -232,7 +232,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0bd086ba2d4aef245bb87852c710af18, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectionDistance: 30
+  detectionDistance: 20
   fovAngle: 120
   targetTag: Wolf
   ignoreMask:

@@ -38,6 +38,7 @@ public class SheepCatcher : MonoBehaviour
                 }
 
                 catchProgress += Time.deltaTime;
+                
 
                 if (catchProgress >= catchTime)
                 {

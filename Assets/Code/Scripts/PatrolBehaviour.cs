@@ -7,6 +7,12 @@ public class PatrolBehaviour : EntityFOV
     public float chaseSpeed = 7f;
     public float waitTime = .3f;
     public float turnSpeed = 90f;
+    public float scanAngle = 30f;
+    public float scanSpeed = 45f;
+    public int scanCycles = 1;
+    [Range(0f, 1f)]
+    public float scanProbability = 0.6f;
+    public float minWaypointsBetweenScans = 2f;
 
     public float detectionTime = 2f;
     public float detectionDecayRate = 0.5f;
@@ -15,6 +21,8 @@ public class PatrolBehaviour : EntityFOV
     private Vector3[] waypoints;
     private int currentWaypointIndex;
     private Coroutine activeCoroutine;
+    private Vector3 pathCenter;
+    private int waypointsSinceLastScan = 0;
 
     private float currentDetectionLevel = 0f;
 
@@ -24,6 +32,7 @@ public class PatrolBehaviour : EntityFOV
     {
         BaseStart();
         InitializeWaypoints();
+        CalculatePathCenter();
         StartPatrolling();
     }
 
@@ -50,7 +59,6 @@ public class PatrolBehaviour : EntityFOV
     {
         if (CanSeePlayer())
         {
-            // Calculate distance to wolf
             float distanceToWolf = Vector3.Distance(transform.position, wolf.position);
             float inverseProximity = 1f - Mathf.Clamp01(distanceToWolf / detectionDistance);
             detectionTime = Mathf.Lerp(0.5f, 2f, inverseProximity);
@@ -72,6 +80,28 @@ public class PatrolBehaviour : EntityFOV
             waypoints[i] = pathHolder.GetChild(i).position;
             waypoints[i] = new Vector3(waypoints[i].x, transform.position.y, waypoints[i].z);
         }
+    }
+
+    void CalculatePathCenter()
+    {
+        if(waypoints.Length == 0)
+        {
+            return;
+        }
+
+        if(waypoints.Length == 1)
+        {
+            pathCenter = waypoints[0] ;
+            return;
+        }
+
+        Vector3 sum = Vector3.zero;
+        foreach (Vector3 waypoint in waypoints)
+        {
+            sum += waypoint;
+        }
+        pathCenter = sum / waypoints.Length;
+        pathCenter.y = transform.position.y;
     }
 
     void StartPatrolling()
@@ -103,6 +133,7 @@ public class PatrolBehaviour : EntityFOV
     IEnumerator Patrol()
     {
         currentWaypointIndex = GetClosestWaypointIndex();
+        waypointsSinceLastScan = 0;
 
         while (true)
         {
@@ -124,10 +155,71 @@ public class PatrolBehaviour : EntityFOV
                 yield return null;
             }
 
+            // Decide whether to scan based on probability and minimum waypoint requirement
+            bool shouldScan = Random.value < scanProbability && waypointsSinceLastScan >= minWaypointsBetweenScans;
+            
+            if (shouldScan)
+            {
+                yield return StartCoroutine(ScanInterior());
+                waypointsSinceLastScan = 0;
+            }
+            else
+            {
+                waypointsSinceLastScan++;
+            }
+            
             currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.Length;
             yield return StartCoroutine(TurnToFace(waypoints[currentWaypointIndex]));
             yield return new WaitForSeconds(waitTime);
         }
+    }
+
+    IEnumerator ScanInterior()
+    {
+        // Face the center of the path
+        Vector3 directionToCenter = pathCenter - transform.position;
+        yield return StartCoroutine(TurnToFace(transform.position + directionToCenter));
+
+        float baseAngle = transform.eulerAngles.y;
+        
+        // Perform scanning cycles
+        for (int cycle = 0; cycle < scanCycles; cycle++)
+        {
+            // Look right
+            float targetAngle = baseAngle + scanAngle;
+            while (Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle)) > 0.05f)
+            {
+                if (currentDetectionLevel >= detectionTime)
+                    yield break;
+
+                float angle = Mathf.MoveTowardsAngle(
+                    transform.eulerAngles.y,
+                    targetAngle,
+                    scanSpeed * Time.deltaTime
+                );
+                transform.eulerAngles = Vector3.up * angle;
+                yield return null;
+            }
+
+            // Look left
+            targetAngle = baseAngle - scanAngle;
+            while (Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle)) > 0.05f)
+            {
+                if (currentDetectionLevel >= detectionTime)
+                    yield break;
+
+                float angle = Mathf.MoveTowardsAngle(
+                    transform.eulerAngles.y,
+                    targetAngle,
+                    scanSpeed * Time.deltaTime
+                );
+                transform.eulerAngles = Vector3.up * angle;
+                yield return null;
+            }
+        }
+
+        // Return to center
+        yield return StartCoroutine(TurnToFace(transform.position + directionToCenter));
     }
 
     IEnumerator TurnToFace(Vector3 lookTarget)
@@ -182,7 +274,6 @@ public class PatrolBehaviour : EntityFOV
         if (distanceToTarget < 1.5f)
         {
             currentDetectionLevel = 0f; // Reset detection when guard reaches the wolf
-            // Add code here for what happens when the patrol reaches the target (e.g., attack, alert, etc.)
         }
     }
 
@@ -241,5 +332,12 @@ public class PatrolBehaviour : EntityFOV
         float detectionRatio = currentDetectionLevel / detectionTime;
         Vector3 meterPosition = transform.position + Vector3.up * 2f;
         Gizmos.DrawLine(meterPosition, meterPosition + Vector3.right * detectionRatio);
+
+        // Draw path center visualization
+        if (Application.isPlaying)
+        {
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireSphere(pathCenter, 0.5f);
+        }
     }
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
@@ -12,10 +13,10 @@ public class GameManager : MonoBehaviour
     public bool isGameActive = false;
 
     [Header("UI References")]
-    public Text sheepCountText;
-    public Text timerText;
+    public TextMeshProUGUI sheepCountText;
+    public TextMeshProUGUI timerText;
     public GameObject gameOverPanel;
-    public Text gameOverText;
+    public TextMeshProUGUI gameOverText;
 
     [Header("Spawn Settings")]
     public Vector3 spawnAreaCenter = Vector3.zero;
@@ -115,10 +116,10 @@ public class GameManager : MonoBehaviour
     private void UpdateUI()
     {
         if (sheepCountText != null && FlockManager.FM != null)
-            sheepCountText.text = $"Sheep Captured: {sheepCaptureCount} / {FlockManager.FM.flockSize}";
+            sheepCountText.text = $"{sheepCaptureCount} / {FlockManager.FM.flockSize}";
 
         if (timerText != null)
-            timerText.text = $"Time: {Mathf.CeilToInt(currentGameTime)}s";
+            timerText.text = $"{Mathf.CeilToInt(currentGameTime)}s";
     }
 
     private void CheckGameOver()
